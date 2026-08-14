@@ -1,0 +1,250 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// --- Enums ---
+
+enum Role {
+  ORGANIZER
+  TEAM_CAPTAIN
+  PARTICIPANT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum EventStatus {
+  WAITING
+  DATA_IMPORTED
+  LIVE
+  ENDED
+}
+
+enum NewsBundleStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+}
+
+enum SellRequestStatus {
+  BUYER_PENDING
+  ORGANIZER_PENDING
+  COMPLETED
+  REJECTED
+}
+
+enum RejectedBy {
+  BUYER
+  ORGANIZER
+}
+
+// --- Models ---
+
+model User {
+  id        String     @id @default(uuid())
+  clerkId   String     @unique
+  email     String     @unique
+  name      String
+  role      Role
+  teamId    String?    // Nullable because Organizer has no team, and provisioning happens before import
+  status    UserStatus
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  Team          Team?          @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  Announcements Announcement[]
+
+  @@index([clerkId])
+  @@index([teamId])
+}
+
+model Team {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Users                User[]
+  Portfolio            Portfolio?
+  TradesAsSeller       Trade[]       @relation("SellerTrades")
+  TradesAsBuyer        Trade[]       @relation("BuyerTrades")
+  SellRequestsAsSeller SellRequest[] @relation("SellerRequests")
+  SellRequestsAsBuyer  SellRequest[] @relation("BuyerRequests")
+}
+
+model Portfolio {
+  id           String   @id @default(uuid())
+  teamId       String   @unique
+  
+  // TODO: Add DB CHECK constraint: cash >= 0
+  cash         Decimal  @db.Decimal(18,2)
+  
+  // TODO: Add DB CHECK constraint: reservedCash >= 0
+  // TODO: Add DB CHECK constraint: reservedCash <= cash
+  reservedCash Decimal  @default(0) @db.Decimal(18,2) // IMP-010 Reservation
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  Team     Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  Holdings Holding[]
+
+  @@index([teamId])
+}
+
+model Holding {
+  id               String   @id @default(uuid())
+  portfolioId      String
+  companyId        String
+  
+  // TODO: Add DB CHECK constraint: quantity >= 0
+  quantity         Int
+  
+  // TODO: Add DB CHECK constraint: reservedQuantity >= 0
+  // TODO: Add DB CHECK constraint: reservedQuantity <= quantity
+  reservedQuantity Int      @default(0) // IMP-010 Reservation
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  Portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  Company   Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([portfolioId, companyId])
+  @@index([portfolioId])
+  @@index([companyId])
+}
+
+model Company {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  sector      String
+  description String
+  logo        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  Market       Market?
+  Holdings     Holding[]
+  Trades       Trade[]
+  SellRequests SellRequest[]
+}
+
+model Market {
+  id            String   @id @default(uuid())
+  companyId     String   @unique
+  previousPrice Decimal  @db.Decimal(18,2)
+  currentPrice  Decimal  @db.Decimal(18,2)
+  highPrice     Decimal  @db.Decimal(18,2)
+  lowPrice      Decimal  @db.Decimal(18,2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  Company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model Event {
+  id                 String      @id @default(uuid())
+  isSingleton        Boolean     @default(true) @unique
+  status             EventStatus
+  activeNewsBundleId String?     @unique
+  leaderboardVisible Boolean     @default(false)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  ActiveNewsBundle NewsBundle? @relation(fields: [activeNewsBundleId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+}
+
+model NewsBundle {
+  id         String           @id @default(uuid())
+  title      String
+  status     NewsBundleStatus
+  releasedAt DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  News  News[]
+  Event Event? // Back-relation for Event.activeNewsBundleId
+
+  @@index([status])
+}
+
+model News {
+  id        String   @id @default(uuid())
+  bundleId  String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Bundle NewsBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@index([bundleId])
+}
+
+model SellRequest {
+  id             String            @id @default(uuid())
+  sellerTeamId   String
+  buyerTeamId    String
+  companyId      String
+  quantity       Int
+  pricePerShare  Decimal           @db.Decimal(18,2)
+  reservedShares Int               @default(0) // IMP-010 Reservation
+  reservedCash   Decimal           @default(0) @db.Decimal(18,2) // IMP-010 Reservation
+  status         SellRequestStatus
+  rejectedBy     RejectedBy?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  SellerTeam Team    @relation("SellerRequests", fields: [sellerTeamId], references: [id], onDelete: Restrict)
+  BuyerTeam  Team    @relation("BuyerRequests", fields: [buyerTeamId], references: [id], onDelete: Restrict)
+  Company    Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([sellerTeamId])
+  @@index([buyerTeamId])
+  @@index([companyId])
+  @@index([status])
+}
+
+model Trade {
+  id            String   @id @default(uuid())
+  sellerTeamId  String
+  buyerTeamId   String
+  companyId     String
+  quantity      Int
+  pricePerShare Decimal  @db.Decimal(18,2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  SellerTeam Team    @relation("SellerTrades", fields: [sellerTeamId], references: [id], onDelete: Restrict)
+  BuyerTeam  Team    @relation("BuyerTrades", fields: [buyerTeamId], references: [id], onDelete: Restrict)
+  Company    Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([sellerTeamId])
+  @@index([buyerTeamId])
+  @@index([companyId])
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  message   String
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([authorId])
+}

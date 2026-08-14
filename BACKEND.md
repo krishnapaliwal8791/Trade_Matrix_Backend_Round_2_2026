@@ -271,6 +271,27 @@ POST /event/reset
 
 A News Bundle follows the same philosophy as Packages from Round 1.
 
+### News Bundle Statuses
+
+Supported values:
+- PENDING
+- ACTIVE
+- COMPLETED
+
+**PENDING**
+- Bundle exists but is not currently active.
+
+**ACTIVE**
+- Bundle is currently active.
+- Teams may trade.
+- SellRequest workflow is enabled.
+
+**COMPLETED**
+- Organizer successfully applied bundle prices.
+- Bundle can never become ACTIVE again.
+
+The COMPLETED state must be documented as irreversible.
+
 ### Properties
 
 - Independent
@@ -501,6 +522,7 @@ A Portfolio represents the current financial assets owned by exactly one Team du
 Portfolio owns:
 
 - Cash
+- Reserved Cash
 - Holdings
 
 Portfolio does not own:
@@ -525,6 +547,11 @@ Fields
 - `id`
 - `teamId`
 - `cash`
+- `reservedCash`
+
+`reservedCash` is implementation state used for cash reservation.
+It does not represent derived data.
+It is persisted because reservation enforcement requires atomic database validation.
 
 No additional fields exist.
 
@@ -581,12 +608,14 @@ Final event ranking is determined by Net Worth.
 ### Tie Handling
 
 Teams with identical Net Worth share the same rank.
+Subsequent rank numbers are skipped.
+Ranking uses competition ranking.
 
 Example:
 
-1. Team A
-1. Team B
-3. Team C
+Rank 1: Team A (1000)
+Rank 1: Team B (1000)
+Rank 3: Team C (900)
 
 No additional tie-breaker exists.
 
@@ -634,11 +663,14 @@ Accordingly:
 
 A Holding represents a Portfolio's ownership of exactly one Company.
 
-Holding answers exactly one business question:
+Holding answers business questions regarding ownership and reservations:
 
-"How many shares of this company does this Portfolio currently own?"
+"How many shares of this company does this Portfolio currently own, and how many are reserved?"
 
-Holding owns only ownership information.
+Holding explicitly owns:
+
+- quantity
+- reservedQuantity
 
 It does not own:
 
@@ -658,6 +690,11 @@ Fields
 - `portfolioId`
 - `companyId`
 - `quantity`
+- `reservedQuantity`
+
+`reservedQuantity` is implementation state used for share reservation.
+It does not represent derived data.
+It is persisted because reservation enforcement requires atomic database validation.
 
 No additional fields exist.
 
@@ -726,10 +763,14 @@ Trade is historical data.
 
 ### SellRequest Lifecycle
 
-SellRequests may be created only while:
+SellRequest functionality is available only while a News Bundle is ACTIVE.
+
+Current implementation determines this using:
 
 - `status == LIVE`
 - `activeNewsBundleId != null`
+
+All SellRequest endpoints must fail outside the active trading window.
 
 Each SellRequest contains exactly one Company.
 
@@ -822,7 +863,21 @@ Reservation must never outlive its SellRequest.
 
 ### Reservation Ownership
 
-Reservation lifetime is bounded by SellRequest lifetime.
+Since reservation is implemented using aggregate reservation fields, explicitly document that SellRequest stores:
+
+- `reservedShares`
+- `reservedCash`
+
+Purpose:
+
+- Track the exact reservation created by that SellRequest.
+- Support precise reservation release during:
+  - buyer rejection
+  - organizer rejection
+  - organizer approval
+  - bundle cleanup
+
+Reservation lifetime remains bounded by SellRequest lifetime.
 
 Reservation is created, maintained, and released as part of SellRequest operations.
 
@@ -852,12 +907,18 @@ Apply Prices requires:
 - `activeNewsBundleId != null`
 - ORGANIZER_PENDING count = 0
 
-When Apply Prices executes:
+When the Organizer applies prices for a News Bundle:
+
+1. The bundle status becomes COMPLETED.
+2. Trading for that bundle immediately stops.
+3. All SellRequests associated with that trading window are permanently deleted.
+4. SellRequest endpoints become unavailable until another bundle becomes ACTIVE.
+
+Additionally:
 
 - Market updates are applied.
 - Portfolio values are recalculated.
 - Leaderboard is recalculated.
-- All SellRequests are deleted.
 - All reservations are released.
 
 Possible SellRequest states at cleanup:
@@ -886,7 +947,7 @@ After cleanup:
 - SellRequests cannot survive bundle closure.
 - SellRequests cannot exist without an active News Bundle.
 - Trades cannot exist without a completed SellRequest.
-- A SellRequest belongs to exactly one News Bundle.
+- A SellRequest is implicitly associated with the active News Bundle.
 
 ---
 
@@ -1227,17 +1288,14 @@ This transition occurs only after all import work succeeds.
 
 ### Reset Behaviour
 
-Event Reset must not delete manually provisioned users.
+Reset returns Round 2 to the exact state that existed before successful Round 1 import.
 
-Event Reset removes only Round 2 runtime business data.
+- All imported Round 1 data is removed.
+- All runtime-generated trading data is removed.
+- All organizer-created setup data that existed before import is preserved.
+- Any data created directly or indirectly by Round 1 import or Round 2 runtime activity must be removed during reset, even for entities introduced later.
 
-After Reset:
-
-- Users remain
-- Clerk mappings remain
-- Roles remain
-
-Imported event data is removed according to existing Reset rules.
+*(Implementation Detail: preserved entities include Users, Clerk mappings, Roles, News Bundles, News Items, Event record. Removed entities include Teams, Companies, Markets, Portfolios, Holdings, Trades, SellRequests, Announcements.)*
 
 ---
 
