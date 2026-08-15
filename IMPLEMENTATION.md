@@ -1038,7 +1038,7 @@ Response:
 
 ---
 
-### GET /users/event
+### GET /event
 
 Purpose:
 
@@ -1051,6 +1051,7 @@ Allow frontend to determine:
 
 Access:
 
+- ORGANIZER
 - PARTICIPANT
 - TEAM_CAPTAIN
 
@@ -1061,7 +1062,7 @@ Response:
   "success": true,
   "data": {
     "status": "LIVE",
-    "activeNewsBundleId": "bundle_cuid",
+    "activeNewsBundleId": null,
     "leaderboardVisible": false
   }
 }
@@ -1750,6 +1751,8 @@ Rules:
 Purpose:
 
 Start the event.
+
+Status: Implemented
 
 Access:
 

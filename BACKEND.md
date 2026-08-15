@@ -246,6 +246,25 @@ POST /event/reset
 - Reset clears all Round 2 runtime data and restores `WAITING`.
 - Reset is NOT a business state transition.
 
+### Event State Access
+
+```
+GET /event
+```
+
+- Implemented
+- Allowed Consumers: ORGANIZER, TEAM_CAPTAIN, PARTICIPANT
+- Returns the global Event singleton state.
+
+### Event Start
+
+```
+POST /organizer/start-event
+```
+
+- Implemented
+- Transitions `DATA_IMPORTED` → `LIVE`
+
 ---
 
 ## AD-005 — Event Entity

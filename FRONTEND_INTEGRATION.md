@@ -6,7 +6,9 @@ As of this document version, only the following endpoints are implemented and re
 
 - GET /health
 - GET /auth/me
+- GET /event
 - POST /organizer/import-round1
+- POST /organizer/start-event
 
 Additional endpoints will be documented as they are implemented.
 
@@ -51,8 +53,11 @@ All API responses follow a standard envelope:
 - **Response DTO:**
   ```json
   {
-    "status": "string",
-    "database": "string"
+    "success": true,
+    "data": {
+      "status": "string",
+      "database": "string"
+    }
   }
   ```
 - **Business Rules:**
@@ -70,11 +75,14 @@ All API responses follow a standard envelope:
 - **Response DTO:**
   ```json
   {
-    "id": "string (uuid)",
-    "clerkId": "string",
-    "role": "ORGANIZER | TEAM_CAPTAIN | PARTICIPANT",
-    "teamId": "string (uuid) | null",
-    "status": "ACTIVE | INACTIVE"
+    "success": true,
+    "data": {
+      "id": "string (uuid)",
+      "clerkId": "string",
+      "role": "ORGANIZER | TEAM_CAPTAIN | PARTICIPANT",
+      "teamId": "string (uuid) | null",
+      "status": "ACTIVE | INACTIVE"
+    }
   }
   ```
 - **Business Rules:**
@@ -92,11 +100,14 @@ All API responses follow a standard envelope:
 - **Response DTO:**
   ```json
   {
-    "importedCompanies": "number",
-    "importedTeams": "number",
-    "importedPortfolios": "number",
-    "importedHoldings": "number",
-    "eventStatus": "DATA_IMPORTED"
+    "success": true,
+    "data": {
+      "importedCompanies": "number",
+      "importedTeams": "number",
+      "importedPortfolios": "number",
+      "importedHoldings": "number",
+      "eventStatus": "DATA_IMPORTED"
+    }
   }
   ```
 - **Business Rules:**
@@ -107,3 +118,50 @@ All API responses follow a standard envelope:
   - Each provisioned team must have exactly 1 `TEAM_CAPTAIN` and 3 `PARTICIPANT`s.
   - Automatically provisions companies, initial market prices, and team portfolios based on the data.
   - Sets the Event status to `DATA_IMPORTED` upon successful completion.
+
+---
+
+### 4. Get Current Event State
+
+- **HTTP Method:** `GET`
+- **Path:** `/event`
+- **Auth Requirement:** Required
+- **Required Role:** `ORGANIZER`, `TEAM_CAPTAIN`, or `PARTICIPANT`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "status": "LIVE",
+      "activeNewsBundleId": null,
+      "leaderboardVisible": false
+    }
+  }
+  ```
+- **Business Rules:**
+  - Returns the global Event singleton state.
+  - Used by the frontend to determine if the event has started, ended, or if a news bundle is active.
+
+---
+
+### 5. Start Event
+
+- **HTTP Method:** `POST`
+- **Path:** `/organizer/start-event`
+- **Auth Requirement:** Required
+- **Required Role:** `ORGANIZER`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": {}
+  }
+  ```
+- **Business Rules:**
+  - Allowed only when Event status is `DATA_IMPORTED`.
+  - Sets Event status to `LIVE`.
+  - Sets `activeNewsBundleId` to `null`.
+  - Sets `leaderboardVisible` to `false`.
+  - Cannot be executed twice.

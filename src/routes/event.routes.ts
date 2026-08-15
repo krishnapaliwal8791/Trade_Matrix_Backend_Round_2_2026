@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { Role } from '@prisma/client';
-import { organizerController } from '../controllers/organizer.controller';
 import { eventController } from '../controllers/event.controller';
 import { authenticate } from '../middleware/authenticate';
 import { requireRole } from '../middleware/requireRole';
@@ -8,9 +7,8 @@ import { requireRole } from '../middleware/requireRole';
 const router = Router();
 
 router.use(authenticate);
-router.use(requireRole(Role.ORGANIZER));
+router.use(requireRole(Role.ORGANIZER, Role.TEAM_CAPTAIN, Role.PARTICIPANT));
 
-router.post('/import-round1', organizerController.importRound1);
-router.post('/start-event', eventController.startEvent);
+router.get('/', eventController.getEvent);
 
-export const organizerRoutes = router;
+export const eventRoutes = router;
