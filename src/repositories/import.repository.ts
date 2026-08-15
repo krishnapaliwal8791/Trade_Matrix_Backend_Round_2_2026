@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
 import { Round1ExportData } from '../types/round1';
 import { AppError } from '../utils/AppError';
@@ -91,56 +92,55 @@ export const executeImportTransaction = async (round1Data: Round1ExportData) => 
 
     // --- Import Execution ---
 
-    let importedCompanies = 0;
-    let importedPortfolios = 0;
-    let importedHoldings = 0;
+    // --- Optimized Import Execution ---
 
-    // A. Create Companies and Markets
-    for (const company of round1Data.companies) {
-      await tx.company.create({
-        data: {
-          id: company.id,
-          name: company.name,
-          sector: company.sector,
-          description: company.description,
-          logo: company.logo,
-          Market: {
-            create: {
-              previousPrice: company.initialPrice,
-              currentPrice: company.initialPrice,
-              highPrice: company.initialPrice,
-              lowPrice: company.initialPrice,
-            },
-          },
-        },
-      });
-      importedCompanies++;
-    }
+    const companiesToCreate = round1Data.companies.map((c) => ({
+      id: c.id,
+      name: c.name,
+      sector: c.sector,
+      description: c.description,
+      logo: c.logo,
+    }));
 
-    // B. Create Portfolios and Holdings
+    const marketsToCreate = round1Data.companies.map((c) => ({
+      companyId: c.id,
+      previousPrice: c.initialPrice,
+      currentPrice: c.initialPrice,
+      highPrice: c.initialPrice,
+      lowPrice: c.initialPrice,
+    }));
+
+    const portfoliosToCreate = [];
+    const holdingsToCreate = [];
+
     for (const team of round1Data.teams) {
-      // Find the created portfolio to attach holdings
-      const portfolio = await tx.portfolio.create({
-        data: {
-          teamId: team.id,
-          cash: team.remainingCash,
-          reservedCash: 0,
-        },
+      const portfolioId = crypto.randomUUID();
+
+      portfoliosToCreate.push({
+        id: portfolioId,
+        teamId: team.id,
+        cash: team.remainingCash,
+        reservedCash: 0,
       });
-      importedPortfolios++;
 
       for (const holding of team.holdings) {
-        await tx.holding.create({
-          data: {
-            portfolioId: portfolio.id,
-            companyId: holding.companyId,
-            quantity: holding.quantity,
-            reservedQuantity: 0,
-          },
+        holdingsToCreate.push({
+          portfolioId: portfolioId,
+          companyId: holding.companyId,
+          quantity: holding.quantity,
+          reservedQuantity: 0,
         });
-        importedHoldings++;
       }
     }
+
+    await tx.company.createMany({ data: companiesToCreate });
+    await tx.market.createMany({ data: marketsToCreate });
+    await tx.portfolio.createMany({ data: portfoliosToCreate });
+    await tx.holding.createMany({ data: holdingsToCreate });
+
+    let importedCompanies = companiesToCreate.length;
+    let importedPortfolios = portfoliosToCreate.length;
+    let importedHoldings = holdingsToCreate.length;
 
     // C. Update Event Status
     await tx.event.update({
@@ -157,7 +157,7 @@ export const executeImportTransaction = async (round1Data: Round1ExportData) => 
     };
   }, {
     // Optional: increase timeout if this is expected to take a while
-    timeout: 10000,
+    timeout: 60000,
   });
 };
 
