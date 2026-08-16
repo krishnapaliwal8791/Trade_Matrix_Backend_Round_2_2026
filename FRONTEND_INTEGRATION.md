@@ -13,6 +13,8 @@ As of this document version, only the following endpoints are implemented and re
 - GET /users/active-news-bundle
 - GET /users/news-bundles/:id
 - POST /organizer/news-bundles/:id/reveal
+- GET /organizer/markets
+- POST /organizer/apply-prices
 
 Additional endpoints will be documented as they are implemented.
 
@@ -308,3 +310,70 @@ Render news articles
   - Updates `Event.activeNewsBundleId` to the revealed bundle's ID and sets `Event.leaderboardVisible` to `false`.
 - **Frontend Usage Notes:**
   - Successful execution of this endpoint enables the active trading window for participants.
+
+---
+
+### 10. Get Markets
+
+- **HTTP Method:** `GET`
+- **Path:** `/organizer/markets`
+- **Auth Requirement:** Required
+- **Required Role:** `ORGANIZER`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "string",
+        "companyId": "string",
+        "currentPrice": "number",
+        "Company": {
+          "name": "string",
+          "sector": "string",
+          "logo": "string | null"
+        }
+      }
+    ]
+  }
+  ```
+- **Business Rules:**
+  - Returns all Market records.
+  - Returns `id`, `companyId`, `currentPrice`, and nested `Company` metadata to avoid N+1 frontend requests.
+  - Organizer-only endpoint.
+
+---
+
+### 11. Apply Prices
+
+- **HTTP Method:** `POST`
+- **Path:** `/organizer/apply-prices`
+- **Auth Requirement:** Required
+- **Required Role:** `ORGANIZER`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": {}
+  }
+  ```
+- **Business Rules:**
+  - Event must be `LIVE`.
+  - `Event.activeNewsBundleId` must not be `null`.
+  - Active bundle must exist and be `ACTIVE`.
+  - There must be zero `SellRequests` with status `ORGANIZER_PENDING`.
+  - Active bundle must contain exactly one `BundlePrice` for every `Company`.
+  - Every `BundlePrice.targetPrice` must be `> 0`.
+  - MarketEngine updates:
+    - `previousPrice = currentPrice`
+    - `currentPrice = targetPrice`
+    - `highPrice = max(highPrice, targetPrice)`
+    - `lowPrice = min(lowPrice, targetPrice)`
+  - Deletes all `SellRequests`.
+  - Releases all reservations.
+  - Updates bundle status to `COMPLETED`.
+  - Sets `Event.activeNewsBundleId` to `null`.
+  - Sets `Event.leaderboardVisible` to `true`.
+  - Entire operation executes atomically.

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { importService } from '../services/import.service';
 import { newsBundleService } from '../services/newsBundle.service';
+import { marketService } from '../services/market.service';
 import { successResponse } from '../utils/apiResponse';
 import { asyncHandler } from '../utils/asyncHandler';
 
@@ -28,8 +29,20 @@ export const revealNewsBundle = asyncHandler(async (req: Request, res: Response)
   res.status(200).json(successResponse({}));
 });
 
+export const getMarkets = asyncHandler(async (req: Request, res: Response) => {
+  const data = await marketService.getMarkets();
+  res.status(200).json(successResponse(data));
+});
+
+export const applyPrices = asyncHandler(async (req: Request, res: Response) => {
+  await marketService.applyPrices();
+  res.status(200).json(successResponse({}));
+});
+
 export const organizerController = {
   importRound1,
   getNewsBundles,
   revealNewsBundle,
+  getMarkets,
+  applyPrices,
 };

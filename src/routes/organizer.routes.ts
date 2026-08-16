@@ -14,5 +14,7 @@ router.post('/import-round1', organizerController.importRound1);
 router.post('/start-event', eventController.startEvent);
 router.get('/news-bundles', organizerController.getNewsBundles);
 router.post('/news-bundles/:id/reveal', organizerController.revealNewsBundle);
+router.get('/markets', organizerController.getMarkets);
+router.post('/apply-prices', organizerController.applyPrices);
 
 export const organizerRoutes = router;
