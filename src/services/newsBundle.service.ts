@@ -29,7 +29,12 @@ const getNewsBundle = async (id: string) => {
   };
 };
 
+const revealNewsBundle = async (bundleId: string) => {
+  await newsBundleRepository.executeRevealTransaction(bundleId);
+};
+
 export const newsBundleService = {
   getOrganizerNewsBundles,
   getNewsBundle,
+  revealNewsBundle,
 };

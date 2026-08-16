@@ -13,5 +13,6 @@ router.use(requireRole(Role.ORGANIZER));
 router.post('/import-round1', organizerController.importRound1);
 router.post('/start-event', eventController.startEvent);
 router.get('/news-bundles', organizerController.getNewsBundles);
+router.post('/news-bundles/:id/reveal', organizerController.revealNewsBundle);
 
 export const organizerRoutes = router;

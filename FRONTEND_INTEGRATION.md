@@ -12,6 +12,7 @@ As of this document version, only the following endpoints are implemented and re
 - GET /organizer/news-bundles
 - GET /users/active-news-bundle
 - GET /users/news-bundles/:id
+- POST /organizer/news-bundles/:id/reveal
 
 Additional endpoints will be documented as they are implemented.
 
@@ -280,3 +281,30 @@ Render news articles
   - News content is returned.
   - Organizers must not use this endpoint.
   - The frontend should only call this endpoint after obtaining a bundle id from GET /users/active-news-bundle.
+
+---
+
+### 9. Reveal News Bundle
+
+- **HTTP Method:** `POST`
+- **Path:** `/organizer/news-bundles/:id/reveal`
+- **Auth Requirement:** Required
+- **Required Role:** `ORGANIZER`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": {}
+  }
+  ```
+- **Business Rules:**
+  - Event must be `LIVE`.
+  - No active bundle may already exist (`Event.activeNewsBundleId` must be `null`).
+  - Bundle must exist and its status must be `PENDING`.
+  - Bundle must contain exactly one `BundlePrice` for every `Company` in the system.
+  - Every `BundlePrice.targetPrice` must be `> 0`.
+  - Updates the bundle status to `ACTIVE` and sets `releasedAt` to the current timestamp.
+  - Updates `Event.activeNewsBundleId` to the revealed bundle's ID and sets `Event.leaderboardVisible` to `false`.
+- **Frontend Usage Notes:**
+  - Successful execution of this endpoint enables the active trading window for participants.

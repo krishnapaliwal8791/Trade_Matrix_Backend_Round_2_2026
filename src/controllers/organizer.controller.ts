@@ -23,7 +23,13 @@ export const getNewsBundles = asyncHandler(async (req: Request, res: Response) =
   res.status(200).json(successResponse(data));
 });
 
+export const revealNewsBundle = asyncHandler(async (req: Request, res: Response) => {
+  await newsBundleService.revealNewsBundle(req.params.id as string);
+  res.status(200).json(successResponse({}));
+});
+
 export const organizerController = {
   importRound1,
   getNewsBundles,
+  revealNewsBundle,
 };
