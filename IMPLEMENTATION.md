@@ -856,6 +856,9 @@ Repositories expose business-oriented operations rather than raw database querie
 The system may seed:
 
 - Event record
+- NewsBundle
+- News
+- BundlePrice
 
 Administrative users may be provisioned separately.
 
@@ -1894,7 +1897,9 @@ Response:
       "id": "bundle_cuid",
       "title": "Bundle 1",
       "status": "PENDING",
-      "releasedAt": null
+      "releasedAt": null,
+      "newsCount": 3,
+      "bundlePriceCount": 15
     }
   ]
 }
@@ -1905,6 +1910,10 @@ Rules:
 - ORGANIZER only.
 - Return all bundles.
 - Bundle statuses (PENDING, ACTIVE, COMPLETED) are determined according to the rules in BACKEND.md.
+- Counts are derived at read time.
+- News entities are not returned.
+- BundlePrice entities are not returned.
+- Only counts are exposed.
 
 ---
 
@@ -1934,9 +1943,12 @@ Rules:
 - Bundle must exist.
 - Bundle must be PENDING.
 - No ACTIVE bundle may already exist.
+- Bundle must contain exactly one BundlePrice for every Company.
+- All BundlePrice.targetPrice values must be > 0.
 - Bundle becomes ACTIVE.
 - releasedAt is set.
 - activeNewsBundleId is updated.
+- leaderboardVisible becomes false.
 - Executes inside a transaction.
 - ACTIVE or COMPLETED bundles cannot be revealed again.
 
@@ -1998,13 +2010,19 @@ Rules:
 
 - ORGANIZER only.
 - Event must be LIVE.
-- Active news bundle required.
+- Active news bundle required (`activeNewsBundleId != null`).
 - Bundle must be ACTIVE.
 - Bundle must not be COMPLETED.
+- ORGANIZER_PENDING SellRequest count must be 0.
+- The active bundle must contain exactly one BundlePrice for every Company.
+- All BundlePrice.targetPrice values must be > 0.
 - All company prices are updated atomically.
-- market.currentPrice is updated.
+- Fetches BundlePrice records and maps `targetPrice` to `newPrice` via MarketEngine.
+- MarketEngine strictly maintains `previousPrice`, `currentPrice`, `highPrice`, and `lowPrice`.
+- All SellRequest records are deleted (releasing reservations implicitly).
 - Bundle becomes COMPLETED.
 - activeNewsBundleId becomes null.
+- leaderboardVisible becomes true.
 - Executes inside a transaction.
 - Cannot be executed twice for the same bundle.
 

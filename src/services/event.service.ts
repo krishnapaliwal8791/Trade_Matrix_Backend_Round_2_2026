@@ -25,7 +25,12 @@ const startEvent = async () => {
   }
 };
 
+const getActiveNewsBundle = async () => {
+  return await eventRepository.getActiveNewsBundle();
+};
+
 export const eventService = {
   getEvent,
   startEvent,
+  getActiveNewsBundle,
 };

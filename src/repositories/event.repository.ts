@@ -24,7 +24,25 @@ const updateEventStatus = async (
   });
 };
 
+const getActiveNewsBundle = async () => {
+  const event = await prisma.event.findUnique({
+    where: { isSingleton: true },
+    select: {
+      ActiveNewsBundle: {
+        select: {
+          id: true,
+          title: true,
+          releasedAt: true,
+        },
+      },
+    },
+  });
+
+  return event?.ActiveNewsBundle || null;
+};
+
 export const eventRepository = {
   getEvent,
   updateEventStatus,
+  getActiveNewsBundle,
 };

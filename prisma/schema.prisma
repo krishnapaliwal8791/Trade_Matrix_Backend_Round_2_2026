@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -54,7 +54,7 @@ model User {
   email     String     @unique
   name      String
   role      Role
-  teamId    String?    // Nullable because Organizer has no team, and provisioning happens before import
+  teamId    String? // Nullable because Organizer has no team, and provisioning happens before import
   status    UserStatus
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -81,18 +81,18 @@ model Team {
 }
 
 model Portfolio {
-  id           String   @id @default(uuid())
-  teamId       String   @unique
-  
+  id     String @id @default(uuid())
+  teamId String @unique
+
   // TODO: Add DB CHECK constraint: cash >= 0
-  cash         Decimal  @db.Decimal(18,2)
-  
+  cash Decimal @db.Decimal(18, 2)
+
   // TODO: Add DB CHECK constraint: reservedCash >= 0
   // TODO: Add DB CHECK constraint: reservedCash <= cash
-  reservedCash Decimal  @default(0) @db.Decimal(18,2) // IMP-010 Reservation
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  reservedCash Decimal @default(0) @db.Decimal(18, 2) // IMP-010 Reservation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   Team     Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   Holdings Holding[]
@@ -101,19 +101,19 @@ model Portfolio {
 }
 
 model Holding {
-  id               String   @id @default(uuid())
-  portfolioId      String
-  companyId        String
-  
+  id          String @id @default(uuid())
+  portfolioId String
+  companyId   String
+
   // TODO: Add DB CHECK constraint: quantity >= 0
-  quantity         Int
-  
+  quantity Int
+
   // TODO: Add DB CHECK constraint: reservedQuantity >= 0
   // TODO: Add DB CHECK constraint: reservedQuantity <= quantity
-  reservedQuantity Int      @default(0) // IMP-010 Reservation
-  
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  reservedQuantity Int @default(0) // IMP-010 Reservation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   Portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   Company   Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
@@ -136,15 +136,16 @@ model Company {
   Holdings     Holding[]
   Trades       Trade[]
   SellRequests SellRequest[]
+  BundlePrices BundlePrice[]
 }
 
 model Market {
   id            String   @id @default(uuid())
   companyId     String   @unique
-  previousPrice Decimal  @db.Decimal(18,2)
-  currentPrice  Decimal  @db.Decimal(18,2)
-  highPrice     Decimal  @db.Decimal(18,2)
-  lowPrice      Decimal  @db.Decimal(18,2)
+  previousPrice Decimal  @db.Decimal(18, 2)
+  currentPrice  Decimal  @db.Decimal(18, 2)
+  highPrice     Decimal  @db.Decimal(18, 2)
+  lowPrice      Decimal  @db.Decimal(18, 2)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -155,7 +156,7 @@ model Market {
 
 model Event {
   id                 String      @id @default(uuid())
-  isSingleton        Boolean     @default(true) @unique
+  isSingleton        Boolean     @unique @default(true)
   status             EventStatus
   activeNewsBundleId String?     @unique
   leaderboardVisible Boolean     @default(false)
@@ -175,8 +176,9 @@ model NewsBundle {
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
-  News  News[]
-  Event Event? // Back-relation for Event.activeNewsBundleId
+  News         News[]
+  BundlePrices BundlePrice[]
+  Event        Event? // Back-relation for Event.activeNewsBundleId
 
   @@index([status])
 }
@@ -194,15 +196,34 @@ model News {
   @@index([bundleId])
 }
 
+model BundlePrice {
+  id        String @id @default(uuid())
+  bundleId  String
+  companyId String
+
+  // TODO: Add DB CHECK constraint: targetPrice > 0
+  targetPrice Decimal @db.Decimal(18, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Bundle  NewsBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  Company Company    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([bundleId, companyId])
+  @@index([bundleId])
+  @@index([companyId])
+}
+
 model SellRequest {
   id             String            @id @default(uuid())
   sellerTeamId   String
   buyerTeamId    String
   companyId      String
   quantity       Int
-  pricePerShare  Decimal           @db.Decimal(18,2)
+  pricePerShare  Decimal           @db.Decimal(18, 2)
   reservedShares Int               @default(0) // IMP-010 Reservation
-  reservedCash   Decimal           @default(0) @db.Decimal(18,2) // IMP-010 Reservation
+  reservedCash   Decimal           @default(0) @db.Decimal(18, 2) // IMP-010 Reservation
   status         SellRequestStatus
   rejectedBy     RejectedBy?
   createdAt      DateTime          @default(now())
@@ -224,7 +245,7 @@ model Trade {
   buyerTeamId   String
   companyId     String
   quantity      Int
-  pricePerShare Decimal  @db.Decimal(18,2)
+  pricePerShare Decimal  @db.Decimal(18, 2)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

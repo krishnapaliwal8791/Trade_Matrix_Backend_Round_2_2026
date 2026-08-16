@@ -175,6 +175,7 @@ Database
 - Company
 - Market
 - News Bundle
+- BundlePrice
 - Announcement
 
 ### Important Decisions
@@ -328,6 +329,26 @@ The COMPLETED state must be documented as irreversible.
 
 ---
 
+### BundlePrice Philosophy
+
+A News Bundle dictates market changes through absolute target prices, rather than mathematical modifiers (percentages).
+
+A News Bundle contains exactly one BundlePrice for every Company in the system.
+
+BundlePrice stores the final targetPrice for that company after the bundle is applied.
+
+Percentage impacts are intentionally not stored. If percentage changes must be displayed, they are derived read-time values calculated as:
+`((currentPrice - previousPrice) / previousPrice) * 100`
+
+BundlePrice data is configuration data, not historical market data. It dictates the intended future state of the Market.
+
+**BundlePrice Invariants**
+- `targetPrice > 0`
+- Every News Bundle has exactly one BundlePrice per Company.
+- No runtime calculations occur during Apply Prices; the Target Price becomes the Current Price directly.
+
+---
+
 ## AD-007 — Event Runtime Behaviour
 
 ### Initial LIVE
@@ -349,7 +370,8 @@ Allowed only when:
 
 - `status == LIVE`
 - `activeNewsBundleId == null`
-- `leaderboardVisible == false`
+- Bundle contains exactly one BundlePrice for every Company
+- Every BundlePrice.targetPrice > 0
 
 - Trading is now allowed.
 
@@ -373,7 +395,9 @@ Allowed only when:
 
 Backend:
 
-- Updates Market
+- Fetches BundlePrice records for the active bundle
+- Delegates all Market updates to MarketEngine
+- MarketEngine maps BundlePrice.targetPrice to Market.newPrice and remains owner of updating `previousPrice`, `currentPrice`, `highPrice`, and `lowPrice`
 - Recalculates Portfolios
 - Recalculates Net Worth
 - Recalculates Leaderboard
