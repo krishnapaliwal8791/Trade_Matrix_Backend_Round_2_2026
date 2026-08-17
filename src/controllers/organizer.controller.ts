@@ -2,8 +2,11 @@ import { Request, Response } from 'express';
 import { importService } from '../services/import.service';
 import { newsBundleService } from '../services/newsBundle.service';
 import { marketService } from '../services/market.service';
+import { sellRequestService } from '../services/sellRequest.service';
+import { sellRequestRepository } from '../repositories/sellRequest.repository';
 import { successResponse } from '../utils/apiResponse';
 import { asyncHandler } from '../utils/asyncHandler';
+import { AppError } from '../utils/AppError';
 
 export const importRound1 = asyncHandler(async (req: Request, res: Response) => {
   const data = await importService.importRound1();
@@ -39,10 +42,35 @@ export const applyPrices = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json(successResponse({}));
 });
 
+export const getSellRequests = asyncHandler(async (req: Request, res: Response) => {
+  const data = await sellRequestRepository.findAllForOrganizer();
+  res.status(200).json(successResponse(data));
+});
+
+export const getSellRequest = asyncHandler(async (req: Request, res: Response) => {
+  const data = await sellRequestRepository.findById(req.params.id as string);
+  if (!data) throw new AppError('SellRequest not found', 404, 'NOT_FOUND_ERROR');
+  res.status(200).json(successResponse(data));
+});
+
+export const approveSellRequest = asyncHandler(async (req: Request, res: Response) => {
+  const data = await sellRequestService.approveByOrganizer(req.params.id as string);
+  res.status(200).json(successResponse(data));
+});
+
+export const rejectSellRequest = asyncHandler(async (req: Request, res: Response) => {
+  const data = await sellRequestService.rejectByOrganizer(req.params.id as string);
+  res.status(200).json(successResponse(data));
+});
+
 export const organizerController = {
   importRound1,
   getNewsBundles,
   revealNewsBundle,
   getMarkets,
   applyPrices,
+  getSellRequests,
+  getSellRequest,
+  approveSellRequest,
+  rejectSellRequest,
 };

@@ -377,3 +377,372 @@ Render news articles
   - Sets `Event.activeNewsBundleId` to `null`.
   - Sets `Event.leaderboardVisible` to `true`.
   - Entire operation executes atomically.
+  - **Cleanup Behavior:**
+    - ALL SellRequests are deleted.
+    - BUYER_PENDING requests are discarded.
+    - REJECTED requests are deleted.
+    - COMPLETED requests are deleted.
+    - reservedCash is reset to 0.
+    - reservedQuantity is reset to 0.
+
+---
+
+## Sell Request State Machine
+
+The Sell Request workflow enforces a strict linear state machine:
+
+1. **NULL → BUYER_PENDING**: Created by the seller. The seller's shares are immediately reserved (`Holding.reservedQuantity` increments).
+2. **BUYER_PENDING → ORGANIZER_PENDING**: Accepted by the buyer. The buyer's cash is immediately reserved (`Portfolio.reservedCash` increments).
+3. **BUYER_PENDING → REJECTED**: Rejected by the buyer. The seller's shares are unreserved.
+4. **ORGANIZER_PENDING → COMPLETED**: Approved by the Organizer. The seller's reserved shares are deducted, buyer receives the shares. The buyer's reserved cash is deducted, seller receives the cash. A permanent `Trade` record is created.
+5. **ORGANIZER_PENDING → REJECTED**: Rejected by the Organizer. The seller's shares and buyer's cash are unreserved.
+
+*Note: A seller cannot unilaterally cancel or reject their own request once created.*
+
+---
+
+## Sell Request Endpoints
+
+### 12. Create Sell Request
+
+- **HTTP Method:** `POST`
+- **Path:** `/team-captain/sell-requests`
+- **Auth Requirement:** Required
+- **Required Role:** `TEAM_CAPTAIN`
+- **Request DTO:**
+  ```json
+  {
+    "buyerTeamId": "string (uuid)",
+    "companyId": "string (uuid)",
+    "quantity": "number (positive int)",
+    "pricePerShare": "number"
+  }
+  ```
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": "string",
+      "sellerTeamId": "string",
+      "buyerTeamId": "string",
+      "companyId": "string",
+      "quantity": "number",
+      "pricePerShare": "number",
+      "reservedShares": "number",
+      "reservedCash": "number",
+      "status": "BUYER_PENDING",
+      "rejectedBy": "string | null",
+      "createdAt": "string",
+      "updatedAt": "string"
+    }
+  }
+  ```
+- **Business Rules:**
+  - Trading window must be active (`Event.status == LIVE` and `activeNewsBundleId != null`).
+  - Cannot trade with own team.
+  - Seller must own sufficient unreserved shares.
+  - `pricePerShare` must be between 75% and 100% of the current market price.
+  - Reserves the seller's shares upon successful creation.
+
+---
+
+### 13. List Outgoing Sell Requests (Captain)
+
+- **HTTP Method:** `GET`
+- **Path:** `/team-captain/sell-requests`
+- **Auth Requirement:** Required
+- **Required Role:** `TEAM_CAPTAIN`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "string",
+        "sellerTeamId": "string",
+        "buyerTeamId": "string",
+        "companyId": "string",
+        "quantity": "number",
+        "pricePerShare": "number",
+        "reservedShares": "number",
+        "reservedCash": "number",
+        "status": "string",
+        "rejectedBy": "string | null",
+        "createdAt": "string",
+        "updatedAt": "string",
+        "Company": { "name": "string" },
+        "BuyerTeam": { "name": "string" }
+      }
+    ]
+  }
+  ```
+- **Business Rules:**
+  - Returns all requests where the caller's team is the seller, sorted by newest first.
+
+---
+
+### 14. List Incoming Sell Requests (Captain)
+
+- **HTTP Method:** `GET`
+- **Path:** `/team-captain/sell-requests/incoming`
+- **Auth Requirement:** Required
+- **Required Role:** `TEAM_CAPTAIN`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "string",
+        "sellerTeamId": "string",
+        "buyerTeamId": "string",
+        "companyId": "string",
+        "quantity": "number",
+        "pricePerShare": "number",
+        "reservedShares": "number",
+        "reservedCash": "number",
+        "status": "string",
+        "rejectedBy": "string | null",
+        "createdAt": "string",
+        "updatedAt": "string",
+        "Company": { "name": "string" },
+        "SellerTeam": { "name": "string" }
+      }
+    ]
+  }
+  ```
+- **Business Rules:**
+  - Returns all requests where the caller's team is the buyer, sorted by newest first.
+
+---
+
+### 15. Accept Sell Request
+
+- **HTTP Method:** `POST`
+- **Path:** `/team-captain/sell-requests/:id/accept`
+- **Auth Requirement:** Required
+- **Required Role:** `TEAM_CAPTAIN`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": { "success": true }
+  }
+  ```
+- **Business Rules:**
+  - Trading window must be active.
+  - Caller must be the `buyerTeamId`.
+  - Request status must be `BUYER_PENDING`.
+  - Buyer must have sufficient unreserved cash.
+  - Updates status to `ORGANIZER_PENDING` and reserves the buyer's cash.
+
+---
+
+### 16. Reject Sell Request (Buyer)
+
+- **HTTP Method:** `POST`
+- **Path:** `/team-captain/sell-requests/:id/reject`
+- **Auth Requirement:** Required
+- **Required Role:** `TEAM_CAPTAIN`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": { "success": true }
+  }
+  ```
+- **Business Rules:**
+  - Trading window must be active.
+  - Caller must be the `buyerTeamId`.
+  - Request status must be `BUYER_PENDING`.
+  - Updates status to `REJECTED` and releases the seller's reserved shares.
+  - Sets `rejectedBy = BUYER`.
+
+---
+
+### 17. List Team Sell Requests (Participant)
+
+- **HTTP Method:** `GET`
+- **Path:** `/participant/sell-requests`
+- **Auth Requirement:** Required
+- **Required Role:** `PARTICIPANT`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "string",
+        "sellerTeamId": "string",
+        "buyerTeamId": "string",
+        "companyId": "string",
+        "quantity": "number",
+        "pricePerShare": "number",
+        "reservedShares": "number",
+        "reservedCash": "number",
+        "status": "string",
+        "rejectedBy": "string | null",
+        "createdAt": "string",
+        "updatedAt": "string",
+        "Company": { "name": "string" },
+        "SellerTeam": { "name": "string" },
+        "BuyerTeam": { "name": "string" }
+      }
+    ]
+  }
+  ```
+- **Business Rules:**
+  - Returns all requests where the caller's team is either the buyer or the seller.
+
+---
+
+### 18. Get Specific Sell Request (Users)
+
+- **HTTP Method:** `GET`
+- **Path:** `/users/sell-requests/:id`
+- **Auth Requirement:** Required
+- **Required Role:** `PARTICIPANT`, `TEAM_CAPTAIN`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": "string",
+      "sellerTeamId": "string",
+      "buyerTeamId": "string",
+      "companyId": "string",
+      "quantity": "number",
+      "pricePerShare": "number",
+      "reservedShares": "number",
+      "reservedCash": "number",
+      "status": "string",
+      "rejectedBy": "string | null",
+      "createdAt": "string",
+      "updatedAt": "string"
+    }
+  }
+  ```
+- **Business Rules:**
+  - Caller's team must be either the `buyerTeamId` or the `sellerTeamId` (403 Forbidden otherwise).
+  - Organizers cannot use this endpoint.
+
+---
+
+### 19. List All Sell Requests (Organizer)
+
+- **HTTP Method:** `GET`
+- **Path:** `/organizer/sell-requests`
+- **Auth Requirement:** Required
+- **Required Role:** `ORGANIZER`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "string",
+        "sellerTeamId": "string",
+        "buyerTeamId": "string",
+        "companyId": "string",
+        "quantity": "number",
+        "pricePerShare": "number",
+        "reservedShares": "number",
+        "reservedCash": "number",
+        "status": "string",
+        "rejectedBy": "string | null",
+        "createdAt": "string",
+        "updatedAt": "string",
+        "Company": { "name": "string" },
+        "SellerTeam": { "name": "string" },
+        "BuyerTeam": { "name": "string" }
+      }
+    ]
+  }
+  ```
+- **Business Rules:**
+  - Returns all active sell requests in the system.
+
+---
+
+### 20. Get Specific Sell Request (Organizer)
+
+- **HTTP Method:** `GET`
+- **Path:** `/organizer/sell-requests/:id`
+- **Auth Requirement:** Required
+- **Required Role:** `ORGANIZER`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": "string",
+      "sellerTeamId": "string",
+      "buyerTeamId": "string",
+      "companyId": "string",
+      "quantity": "number",
+      "pricePerShare": "number",
+      "reservedShares": "number",
+      "reservedCash": "number",
+      "status": "string",
+      "rejectedBy": "string | null",
+      "createdAt": "string",
+      "updatedAt": "string"
+    }
+  }
+  ```
+- **Business Rules:**
+  - Returns the requested Sell Request data.
+
+---
+
+### 21. Approve Sell Request (Organizer)
+
+- **HTTP Method:** `POST`
+- **Path:** `/organizer/sell-requests/:id/approve`
+- **Auth Requirement:** Required
+- **Required Role:** `ORGANIZER`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": { "success": true }
+  }
+  ```
+- **Business Rules:**
+  - Trading window must be active.
+  - Request status must be `ORGANIZER_PENDING`.
+  - Updates status to `COMPLETED`.
+  - Executes the trade: deducts reserved shares from seller, deducts reserved cash from buyer, increments cash for seller, increments shares for buyer.
+  - Creates a permanent `Trade` record for historical ledger purposes.
+
+---
+
+### 22. Reject Sell Request (Organizer)
+
+- **HTTP Method:** `POST`
+- **Path:** `/organizer/sell-requests/:id/reject`
+- **Auth Requirement:** Required
+- **Required Role:** `ORGANIZER`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": { "success": true }
+  }
+  ```
+- **Business Rules:**
+  - Trading window must be active.
+  - Request status must be `ORGANIZER_PENDING`.
+  - Updates status to `REJECTED` and records `rejectedBy = ORGANIZER`.
+  - Releases both the seller's reserved shares and the buyer's reserved cash.
