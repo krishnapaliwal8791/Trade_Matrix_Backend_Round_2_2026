@@ -610,7 +610,7 @@ Organizers are not associated with teams.
 
 Team Captains may:
 
-- Access participant functionality
+- Access endpoints under /users/*
 - Create SellRequests
 - Accept SellRequests as buyer
 - Reject SellRequests as buyer
@@ -627,6 +627,7 @@ Participants may:
 - View portfolios
 - View announcements
 - View leaderboard when visible
+- View sell requests associated with their team
 
 Participants may not:
 
@@ -984,6 +985,8 @@ Users refers to both:
 
 - PARTICIPANT
 - TEAM_CAPTAIN
+
+ORGANIZER is not considered a User for purposes of the /users/* API namespace.
 
 Unless otherwise specified, all `/users/*` endpoints are accessible to both roles.
 
@@ -1389,9 +1392,8 @@ Return complete details of a sell request.
 
 Access:
 
-- Team associated as seller.
-- Team associated as buyer.
-- ORGANIZER.
+- PARTICIPANT of team associated as seller or buyer.
+- TEAM_CAPTAIN of team associated as seller or buyer.
 
 Response:
 
