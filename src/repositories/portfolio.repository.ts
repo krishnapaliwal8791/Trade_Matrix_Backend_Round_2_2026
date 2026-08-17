@@ -8,6 +8,23 @@ const findByTeam = async (teamId: string, tx?: Prisma.TransactionClient) => {
   });
 };
 
+const getPortfolioWithHoldings = async (teamId: string, tx?: Prisma.TransactionClient) => {
+  const db = tx || prisma;
+  return await db.portfolio.findUnique({
+    where: { teamId },
+    include: {
+      Holdings: {
+        include: {
+          Company: {
+            include: { Market: true }
+          }
+        }
+      }
+    }
+  });
+};
+
 export const portfolioRepository = {
   findByTeam,
+  getPortfolioWithHoldings,
 };

@@ -18,6 +18,14 @@ const getMarkets = async () => {
   });
 };
 
+const getMarketWatch = async () => {
+  return await prisma.market.findMany({
+    include: {
+      Company: true,
+    },
+  });
+};
+
 const executeApplyPricesTransaction = async () => {
   return prisma.$transaction(async (tx) => {
     // 1. Validate Event State
@@ -137,5 +145,6 @@ const executeApplyPricesTransaction = async () => {
 
 export const marketRepository = {
   getMarkets,
+  getMarketWatch,
   executeApplyPricesTransaction,
 };

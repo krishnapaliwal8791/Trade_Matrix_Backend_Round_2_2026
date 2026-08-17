@@ -7,6 +7,7 @@ As of this document version, only the following endpoints are implemented and re
 - GET /health
 - GET /auth/me
 - GET /event
+- GET /users/dashboard
 - POST /organizer/import-round1
 - POST /organizer/start-event
 - GET /organizer/news-bundles
@@ -746,3 +747,57 @@ The Sell Request workflow enforces a strict linear state machine:
   - Request status must be `ORGANIZER_PENDING`.
   - Updates status to `REJECTED` and records `rejectedBy = ORGANIZER`.
   - Releases both the seller's reserved shares and the buyer's reserved cash.
+
+---
+
+### 23. Get User Dashboard
+
+- **HTTP Method:** `GET`
+- **Path:** `/users/dashboard`
+- **Auth Requirement:** Required
+- **Required Role:** `PARTICIPANT`, `TEAM_CAPTAIN`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "portfolio": {
+        "holdings": [
+          {
+            "companyId": "string",
+            "companyName": "string",
+            "shares": "number",
+            "currentPrice": "number",
+            "currentValue": "number"
+          }
+        ],
+        "total": {
+          "shares": "number",
+          "currentValue": "number",
+          "cash": "number",
+          "netWorth": "number"
+        }
+      },
+      "marketWatch": [
+        {
+          "companyId": "string",
+          "companyName": "string",
+          "sector": "string",
+          "currentPrice": "number",
+          "changeDirection": "UP | DOWN | NONE",
+          "changeAmount": "number",
+          "changePercentage": "number",
+          "highestRecorded": "number",
+          "lowestRecorded": "number"
+        }
+      ]
+    }
+  }
+  ```
+- **Business Rules:**
+  - `currentPrice` reflects latest market price.
+  - `currentValue` is the total market value of all holdings.
+  - `netWorth` = `currentValue` + `cash`.
+  - `netWorth` is derived at request time and must never be persisted.
+  - `changeDirection` indicates if `currentPrice` is greater, lesser, or equal to `previousPrice`.
