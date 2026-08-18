@@ -1,5 +1,7 @@
 import { portfolioRepository } from '../repositories/portfolio.repository';
 import { marketRepository } from '../repositories/market.repository';
+import { teamRepository } from '../repositories/team.repository';
+import { eventService } from './event.service';
 import { AppError } from '../utils/AppError';
 
 const getDashboardData = async (teamId: string) => {
@@ -84,6 +86,58 @@ const getDashboardData = async (teamId: string) => {
   };
 };
 
+const getLeaderboard = async () => {
+  const event = await eventService.getEvent();
+  if (!event.leaderboardVisible) {
+    throw new AppError('Leaderboard is hidden', 403, 'BUSINESS_RULE_ERROR');
+  }
+
+  const teams = await teamRepository.getAllTeamsWithPortfolios();
+
+  const mappedTeams = teams.map((team) => {
+    let cash = 0;
+    let currentValue = 0;
+
+    if (team.Portfolio) {
+      cash = Number(team.Portfolio.cash);
+      currentValue = team.Portfolio.Holdings.reduce((sum, holding) => {
+        const market = holding.Company.Market;
+        if (!market) {
+          throw new AppError(`Data inconsistency: Market missing for company ${holding.companyId}`, 500, 'SYSTEM_ERROR');
+        }
+        const price = Number(market.currentPrice);
+        return sum + (holding.quantity * price);
+      }, 0);
+    }
+
+    return {
+      teamId: team.id,
+      teamName: team.name,
+      netWorth: cash + currentValue
+    };
+  });
+
+  // Sort descending by netWorth
+  mappedTeams.sort((a, b) => b.netWorth - a.netWorth);
+
+  // Apply competition ranking
+  const results = [];
+  let currentRank = 1;
+  
+  for (let i = 0; i < mappedTeams.length; i++) {
+    if (i > 0 && mappedTeams[i].netWorth < mappedTeams[i - 1].netWorth) {
+      currentRank = i + 1;
+    }
+    results.push({
+      rank: currentRank,
+      ...mappedTeams[i]
+    });
+  }
+
+  return results;
+};
+
 export const usersService = {
   getDashboardData,
+  getLeaderboard,
 };

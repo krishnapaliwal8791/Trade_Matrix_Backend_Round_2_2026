@@ -4,6 +4,7 @@ import { newsBundleService } from '../services/newsBundle.service';
 import { marketService } from '../services/market.service';
 import { sellRequestService } from '../services/sellRequest.service';
 import { sellRequestRepository } from '../repositories/sellRequest.repository';
+import { teamService } from '../services/team.service';
 import { successResponse } from '../utils/apiResponse';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
@@ -63,6 +64,11 @@ export const rejectSellRequest = asyncHandler(async (req: Request, res: Response
   res.status(200).json(successResponse(data));
 });
 
+export const getTeams = asyncHandler(async (req: Request, res: Response) => {
+  const data = await teamService.getOrganizerTeams();
+  res.status(200).json(successResponse(data));
+});
+
 export const organizerController = {
   importRound1,
   getNewsBundles,
@@ -73,4 +79,5 @@ export const organizerController = {
   getSellRequest,
   approveSellRequest,
   rejectSellRequest,
+  getTeams,
 };

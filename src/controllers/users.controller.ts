@@ -39,9 +39,15 @@ export const getSellRequest = asyncHandler(async (req: Request, res: Response) =
   res.status(200).json(successResponse(data));
 });
 
+export const getLeaderboard = asyncHandler(async (req: Request, res: Response) => {
+  const data = await usersService.getLeaderboard();
+  res.status(200).json(successResponse(data));
+});
+
 export const usersController = {
   getDashboard,
   getActiveNewsBundle,
   getNewsBundle,
   getSellRequest,
+  getLeaderboard,
 };

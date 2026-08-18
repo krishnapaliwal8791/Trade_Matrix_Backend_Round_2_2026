@@ -18,6 +18,7 @@ router.get('/news-bundles', organizerController.getNewsBundles);
 router.post('/news-bundles/:id/reveal', organizerController.revealNewsBundle);
 router.get('/markets', organizerController.getMarkets);
 router.post('/apply-prices', organizerController.applyPrices);
+router.get('/teams', organizerController.getTeams);
 
 router.get('/sell-requests', organizerController.getSellRequests);
 router.get('/sell-requests/:id', validate(getSellRequestSchema), organizerController.getSellRequest);

@@ -16,6 +16,8 @@ As of this document version, only the following endpoints are implemented and re
 - POST /organizer/news-bundles/:id/reveal
 - GET /organizer/markets
 - POST /organizer/apply-prices
+- GET /users/leaderboard
+- GET /organizer/teams
 
 Additional endpoints will be documented as they are implemented.
 
@@ -801,3 +803,62 @@ The Sell Request workflow enforces a strict linear state machine:
   - `netWorth` = `currentValue` + `cash`.
   - `netWorth` is derived at request time and must never be persisted.
   - `changeDirection` indicates if `currentPrice` is greater, lesser, or equal to `previousPrice`.
+---
+
+### 24. Get Leaderboard
+
+- **HTTP Method:** `GET`
+- **Path:** `/users/leaderboard`
+- **Auth Requirement:** Required
+- **Required Role:** `PARTICIPANT`, `TEAM_CAPTAIN`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "rank": 1,
+        "teamId": "string (uuid)",
+        "teamName": "string",
+        "netWorth": "number"
+      }
+    ]
+  }
+  ```
+- **Business Rules:**
+  - Endpoint must fail with a `403` error if `Event.leaderboardVisible` is `false`.
+  - `netWorth` = portfolio cash + market value of holdings using `market.currentPrice`.
+  - Teams are sorted by `netWorth` descending.
+  - Teams with identical `netWorth` share the same rank (competition ranking), and subsequent rank numbers are skipped.
+
+---
+
+### 25. Get Organizer Teams (Monitoring)
+
+- **HTTP Method:** `GET`
+- **Path:** `/organizer/teams`
+- **Auth Requirement:** Required
+- **Required Role:** `ORGANIZER`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "string (uuid)",
+        "name": "string",
+        "cash": "number",
+        "currentValue": "number",
+        "netWorth": "number"
+      }
+    ]
+  }
+  ```
+- **Business Rules:**
+  - Results are sorted alphabetically by team name.
+  - `currentValue` is derived using current market prices.
+  - `netWorth` = `cash` + `currentValue`.
+  - Values default to `0` if a team does not have a Portfolio.
+  - Unaffected by the `leaderboardVisible` flag.
