@@ -2,6 +2,7 @@ import { portfolioRepository } from '../repositories/portfolio.repository';
 import { marketRepository } from '../repositories/market.repository';
 import { teamRepository } from '../repositories/team.repository';
 import { eventService } from './event.service';
+import { portfolioService } from './portfolio.service';
 import { AppError } from '../utils/AppError';
 
 const getDashboardData = async (teamId: string) => {
@@ -95,25 +96,12 @@ const getLeaderboard = async () => {
   const teams = await teamRepository.getAllTeamsWithPortfolios();
 
   const mappedTeams = teams.map((team) => {
-    let cash = 0;
-    let currentValue = 0;
-
-    if (team.Portfolio) {
-      cash = Number(team.Portfolio.cash);
-      currentValue = team.Portfolio.Holdings.reduce((sum, holding) => {
-        const market = holding.Company.Market;
-        if (!market) {
-          throw new AppError(`Data inconsistency: Market missing for company ${holding.companyId}`, 500, 'SYSTEM_ERROR');
-        }
-        const price = Number(market.currentPrice);
-        return sum + (holding.quantity * price);
-      }, 0);
-    }
+    const { netWorth } = portfolioService.calculateFinancials(team.Portfolio);
 
     return {
       teamId: team.id,
       teamName: team.name,
-      netWorth: cash + currentValue
+      netWorth
     };
   });
 
