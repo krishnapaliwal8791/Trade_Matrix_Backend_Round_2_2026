@@ -20,6 +20,22 @@ const getAllTeamsWithPortfolios = async (tx?: Prisma.TransactionClient) => {
   });
 };
 
+const findByIdWithUsers = async (teamId: string) => {
+  return await prisma.team.findUnique({
+    where: { id: teamId },
+    include: {
+      Users: {
+        select: {
+          id: true,
+          name: true,
+          role: true,
+        },
+      },
+    },
+  });
+};
+
 export const teamRepository = {
   getAllTeamsWithPortfolios,
+  findByIdWithUsers,
 };

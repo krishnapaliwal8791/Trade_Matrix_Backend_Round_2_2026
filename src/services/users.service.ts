@@ -1,3 +1,4 @@
+import { Role } from '@prisma/client';
 import { portfolioRepository } from '../repositories/portfolio.repository';
 import { marketRepository } from '../repositories/market.repository';
 import { teamRepository } from '../repositories/team.repository';
@@ -125,7 +126,33 @@ const getLeaderboard = async () => {
   return results;
 };
 
+const getTeam = async (teamId: string) => {
+  const team = await teamRepository.findByIdWithUsers(teamId);
+  if (!team) {
+    throw new AppError('Team not found', 404, 'NOT_FOUND_ERROR');
+  }
+
+  let captain = null;
+  const members: { id: string; name: string }[] = [];
+
+  for (const user of team.Users) {
+    if (user.role === Role.TEAM_CAPTAIN) {
+      captain = { id: user.id, name: user.name };
+    } else if (user.role === Role.PARTICIPANT) {
+      members.push({ id: user.id, name: user.name });
+    }
+  }
+
+  return {
+    id: team.id,
+    name: team.name,
+    captain,
+    members,
+  };
+};
+
 export const usersService = {
   getDashboardData,
   getLeaderboard,
+  getTeam,
 };

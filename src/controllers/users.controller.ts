@@ -44,10 +44,19 @@ export const getLeaderboard = asyncHandler(async (req: Request, res: Response) =
   res.status(200).json(successResponse(data));
 });
 
+export const getTeam = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user || !req.user.teamId) {
+    throw new AppError('Forbidden: User has no team associated', 403, 'AUTHORIZATION_ERROR');
+  }
+  const data = await usersService.getTeam(req.user.teamId);
+  res.status(200).json(successResponse(data));
+});
+
 export const usersController = {
   getDashboard,
   getActiveNewsBundle,
   getNewsBundle,
   getSellRequest,
   getLeaderboard,
+  getTeam,
 };
