@@ -13,6 +13,7 @@ router.use(requireRole(Role.PARTICIPANT, Role.TEAM_CAPTAIN));
 
 router.get('/dashboard', usersController.getDashboard);
 router.get('/team', usersController.getTeam);
+router.get('/companies', usersController.getCompanies);
 router.get('/active-news-bundle', usersController.getActiveNewsBundle);
 router.get('/news-bundles/:id', usersController.getNewsBundle);
 router.get('/sell-requests/:id', validate(getSellRequestSchema), usersController.getSellRequest);

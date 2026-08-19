@@ -9,6 +9,7 @@ As of this document version, only the following endpoints are implemented and re
 - GET /event
 - GET /users/dashboard
 - GET /users/team
+- GET /users/companies
 - GET /team-captain/teams
 - POST /organizer/import-round1
 - POST /organizer/start-event
@@ -923,3 +924,34 @@ The Sell Request workflow enforces a strict linear state machine:
   ```
 - **Business Rules:**
   - Captain's own team must not be returned.
+
+---
+
+### 28. Get Companies
+
+- **HTTP Method:** `GET`
+- **Path:** `/users/companies`
+- **Auth Requirement:** Required
+- **Required Role:** `PARTICIPANT`, `TEAM_CAPTAIN`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "string (cuid/uuid)",
+        "name": "string",
+        "sector": "string",
+        "description": "string",
+        "logo": "string | null",
+        "currentPrice": "number"
+      }
+    ]
+  }
+  ```
+- **Business Rules:**
+  - `currentPrice` is the authoritative stock price fetched dynamically from the `Market` record.
+  - The `Company` details are immutable reference data.
+  - Results are sorted alphabetically by company name.
+

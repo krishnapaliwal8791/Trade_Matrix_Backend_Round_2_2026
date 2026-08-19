@@ -2,6 +2,7 @@ import { Role } from '@prisma/client';
 import { portfolioRepository } from '../repositories/portfolio.repository';
 import { marketRepository } from '../repositories/market.repository';
 import { teamRepository } from '../repositories/team.repository';
+import { companyRepository } from '../repositories/company.repository';
 import { eventService } from './event.service';
 import { portfolioService } from './portfolio.service';
 import { AppError } from '../utils/AppError';
@@ -151,8 +152,22 @@ const getTeam = async (teamId: string) => {
   };
 };
 
+const getCompanies = async () => {
+  const companies = await companyRepository.findAllWithCurrentPrice();
+  
+  return companies.map((company) => ({
+    id: company.id,
+    name: company.name,
+    sector: company.sector,
+    description: company.description,
+    logo: company.logo,
+    currentPrice: company.Market ? Number(company.Market.currentPrice) : 0,
+  }));
+};
+
 export const usersService = {
   getDashboardData,
   getLeaderboard,
   getTeam,
+  getCompanies,
 };

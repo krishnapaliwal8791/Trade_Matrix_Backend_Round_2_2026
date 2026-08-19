@@ -52,6 +52,11 @@ export const getTeam = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json(successResponse(data));
 });
 
+export const getCompanies = asyncHandler(async (req: Request, res: Response) => {
+  const data = await usersService.getCompanies();
+  res.status(200).json(successResponse(data));
+});
+
 export const usersController = {
   getDashboard,
   getActiveNewsBundle,
@@ -59,4 +64,5 @@ export const usersController = {
   getSellRequest,
   getLeaderboard,
   getTeam,
+  getCompanies,
 };
