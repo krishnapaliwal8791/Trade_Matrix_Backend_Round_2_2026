@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 import { sellRequestRepository } from '../repositories/sellRequest.repository';
 import { sellRequestService } from '../services/sellRequest.service';
+import { teamService } from '../services/team.service';
 import { successResponse } from '../utils/apiResponse';
 import { asyncHandler } from '../utils/asyncHandler';
+import { AppError } from '../utils/AppError';
 
 export const create = asyncHandler(async (req: Request, res: Response) => {
   const sellerTeamId = req.user!.teamId!;
@@ -32,10 +34,19 @@ export const reject = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json(successResponse(data));
 });
 
+export const listTeams = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user || !req.user.teamId) {
+    throw new AppError('Forbidden: User has no team associated', 403, 'AUTHORIZATION_ERROR');
+  }
+  const data = await teamService.getTradingTeams(req.user.teamId);
+  res.status(200).json(successResponse(data));
+});
+
 export const teamCaptainController = {
   create,
   listOutgoing,
   listIncoming,
   accept,
   reject,
+  listTeams,
 };

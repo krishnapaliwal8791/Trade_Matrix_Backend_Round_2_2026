@@ -19,6 +19,11 @@ const getOrganizerTeams = async () => {
   return results.sort((a, b) => a.name.localeCompare(b.name));
 };
 
+const getTradingTeams = async (excludeTeamId: string) => {
+  return await teamRepository.findAvailableTradingTeams(excludeTeamId);
+};
+
 export const teamService = {
   getOrganizerTeams,
+  getTradingTeams,
 };

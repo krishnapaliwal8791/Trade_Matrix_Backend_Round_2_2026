@@ -17,4 +17,6 @@ router.get('/sell-requests/incoming', teamCaptainController.listIncoming);
 router.post('/sell-requests/:id/accept', validate(acceptSellRequestSchema), teamCaptainController.accept);
 router.post('/sell-requests/:id/reject', validate(rejectSellRequestSchema), teamCaptainController.reject);
 
+router.get('/teams', teamCaptainController.listTeams);
+
 export const teamCaptainRoutes = router;

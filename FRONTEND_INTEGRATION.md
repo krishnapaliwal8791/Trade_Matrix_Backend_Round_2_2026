@@ -8,6 +8,8 @@ As of this document version, only the following endpoints are implemented and re
 - GET /auth/me
 - GET /event
 - GET /users/dashboard
+- GET /users/team
+- GET /team-captain/teams
 - POST /organizer/import-round1
 - POST /organizer/start-event
 - GET /organizer/news-bundles
@@ -834,7 +836,42 @@ The Sell Request workflow enforces a strict linear state machine:
 
 ---
 
-### 25. Get Organizer Teams (Monitoring)
+### 25. Get Team Details
+
+- **HTTP Method:** `GET`
+- **Path:** `/users/team`
+- **Auth Requirement:** Required
+- **Required Role:** `PARTICIPANT`, `TEAM_CAPTAIN`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": "string (uuid)",
+      "name": "string",
+      "captain": {
+        "id": "string (uuid)",
+        "name": "string"
+      },
+      "members": [
+        {
+          "id": "string (uuid)",
+          "name": "string"
+        }
+      ]
+    }
+  }
+  ```
+- **Business Rules:**
+  - The team is resolved automatically from the authenticated user's session (`req.user.teamId`).
+  - The response is limited strictly to identity data (ID, name) and role mapping.
+  - The `captain` object is derived from the user with the `TEAM_CAPTAIN` role.
+  - The `members` array maps all users with the `PARTICIPANT` role.
+
+---
+
+### 26. Get Organizer Teams (Monitoring)
 
 - **HTTP Method:** `GET`
 - **Path:** `/organizer/teams`
@@ -862,3 +899,27 @@ The Sell Request workflow enforces a strict linear state machine:
   - `netWorth` = `cash` + `currentValue`.
   - Values default to `0` if a team does not have a Portfolio.
   - Unaffected by the `leaderboardVisible` flag.
+
+---
+
+### 27. Get Trading Teams
+
+- **HTTP Method:** `GET`
+- **Path:** `/team-captain/teams`
+- **Auth Requirement:** Required
+- **Required Role:** `TEAM_CAPTAIN`
+- **Request DTO:** None
+- **Response DTO:**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "team_cuid",
+        "name": "Team Beta"
+      }
+    ]
+  }
+  ```
+- **Business Rules:**
+  - Captain's own team must not be returned.

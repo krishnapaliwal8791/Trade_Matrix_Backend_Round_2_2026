@@ -35,7 +35,23 @@ const findByIdWithUsers = async (teamId: string) => {
   });
 };
 
+const findAvailableTradingTeams = async (excludeTeamId: string) => {
+  return await prisma.team.findMany({
+    where: {
+      id: { not: excludeTeamId },
+    },
+    select: {
+      id: true,
+      name: true,
+    },
+    orderBy: {
+      name: 'asc',
+    },
+  });
+};
+
 export const teamRepository = {
   getAllTeamsWithPortfolios,
   findByIdWithUsers,
+  findAvailableTradingTeams,
 };
